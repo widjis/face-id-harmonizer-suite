@@ -20,14 +20,9 @@ const Index: React.FC = () => {
     setAdaptiveRadiusPercentage(value[0]);
   }, []);
 
-  const onFileAccepted = useCallback((acceptedFiles: File[]) => {
+  const handleFilesSelected = useCallback((acceptedFiles: File[]) => {
     setImageFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
     setProcessingError(null);
-  }, []);
-
-  const onFileRejected = useCallback((rejectedFiles: File[]) => {
-    console.log("Rejected File", rejectedFiles);
-    setProcessingError("Only image files are allowed.");
   }, []);
 
   const handleProcessImages = async () => {
@@ -86,8 +81,12 @@ const Index: React.FC = () => {
       {/* File Drop Zone */}
       <div className="mb-6">
         <FileDropZone
-          onFileAccepted={onFileAccepted}
-          onFileRejected={onFileRejected}
+          onFilesSelected={handleFilesSelected}
+          acceptedTypes=".jpg,.jpeg,.png"
+          title="Drop image files here"
+          description="or click to browse"
+          multiple={true}
+          selectedFiles={imageFiles}
         />
         {processingError && (
           <p className="text-red-500 mt-2">{processingError}</p>
