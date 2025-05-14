@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import JSZip from 'jszip';
@@ -30,6 +29,8 @@ const FaceDetectionLoader: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
 };
 
 class ImageProcessor {
+  static FaceDetectionLoader = FaceDetectionLoader;
+
   static async processImages(imageFiles: File[], adaptiveRadiusPercentage: number): Promise<void> {
     const zip = new JSZip();
     const processedFolder = zip.folder("processed_images");
@@ -174,8 +175,5 @@ class ImageProcessor {
     });
   }
 }
-
-// Add the FaceDetectionLoader as a static property
-ImageProcessor.FaceDetectionLoader = FaceDetectionLoader;
 
 export default ImageProcessor;
