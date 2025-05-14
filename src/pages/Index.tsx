@@ -5,29 +5,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import FileDropZone from "@/components/FileDropZone"; // Fixed import statement
+import { toast } from "@/components/ui/sonner";
+import FileDropZone from "@/components/FileDropZone";
 import ImageProcessor from '@/components/ImageProcessor';
+import ExcelProcessor from '@/components/ExcelProcessor';
+import { Download, FileText, Upload } from 'lucide-react';
 
 const Index: React.FC = () => {
   const [adaptiveRadiusPercentage, setAdaptiveRadiusPercentage] = useState(25);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [excelFiles, setExcelFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [processMode, setProcessMode] = useState<'images-only' | 'both'>('images-only');
 
   const handleAdaptiveRadiusChange = useCallback((value: number[]) => {
     setAdaptiveRadiusPercentage(value[0]);
   }, []);
 
-  const handleFilesSelected = useCallback((acceptedFiles: File[]) => {
+  const handleImageFilesSelected = useCallback((acceptedFiles: File[]) => {
     setImageFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
     setProcessingError(null);
   }, []);
 
+  const handleExcelFilesSelected = useCallback((acceptedFiles: File[]) => {
+    setExcelFiles((prevFiles) => [...prevFiles, ...acceptedFiles]);
+    setProcessingError(null);
+  }, []);
+
   const handleProcessImages = async () => {
-    if (imageFiles.length === 0) {
+    if (imageFiles.length === 0 && processMode === 'images-only') {
       setProcessingError("Please upload image files first.");
+      return;
+    }
+
+    if (processMode === 'both' && (imageFiles.length === 0 || excelFiles.length === 0)) {
+      setProcessingError("Please upload both image and Excel files.");
       return;
     }
 
@@ -35,10 +50,21 @@ const Index: React.FC = () => {
     setProcessingError(null);
 
     try {
-      await ImageProcessor.processImages(imageFiles, adaptiveRadiusPercentage);
+      // Process images
+      if (imageFiles.length > 0) {
+        await ImageProcessor.processImages(imageFiles, adaptiveRadiusPercentage);
+        toast.success("Images processed successfully!");
+      }
+
+      // Process Excel files if in 'both' mode
+      if (processMode === 'both' && excelFiles.length > 0) {
+        await ExcelProcessor.processExcelFiles(excelFiles);
+        toast.success("Excel files processed successfully!");
+      }
     } catch (error: any) {
       console.error("Processing error:", error);
-      setProcessingError("Failed to process images. Please try again.");
+      setProcessingError(`Failed to process files: ${error.message || 'Unknown error'}`);
+      toast.error("Failed to process files. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -48,6 +74,11 @@ const Index: React.FC = () => {
     setModelsLoaded(true);
     setIsLoadingModels(false);
   }, []);
+
+  const handleProcessModeChange = (value: string) => {
+    setProcessMode(value as 'images-only' | 'both');
+    setProcessingError(null);
+  };
 
   // UI Rendering
   return (
@@ -66,7 +97,12 @@ const Index: React.FC = () => {
       {/* Processing Options */}
       <div className="mb-6">
         <h2 className="text-lg font-medium mb-2">Select Processing Options:</h2>
-        <RadioGroup defaultValue="images-only" className="space-y-2">
+        <RadioGroup 
+          defaultValue="images-only" 
+          className="space-y-2"
+          value={processMode}
+          onValueChange={handleProcessModeChange}
+        >
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="images-only" id="images-only" />
             <Label htmlFor="images-only">Process Images Only</Label>
@@ -78,16 +114,42 @@ const Index: React.FC = () => {
         </RadioGroup>
       </div>
 
-      {/* File Drop Zone */}
-      <div className="mb-6">
-        <FileDropZone
-          onFilesSelected={handleFilesSelected}
-          acceptedTypes=".jpg,.jpeg,.png"
-          title="Drop image files here"
-          description="or click to browse"
-          multiple={true}
-          selectedFiles={imageFiles}
-        />
+      {/* File Drop Zones */}
+      <div className="mb-6 grid gap-6">
+        {/* Image Files Drop Zone */}
+        <div>
+          <h2 className="text-lg font-medium mb-2 flex items-center gap-2">
+            <Upload size={18} />
+            Image Files
+          </h2>
+          <FileDropZone
+            onFilesSelected={handleImageFilesSelected}
+            acceptedTypes=".jpg,.jpeg,.png"
+            title="Drop image files here"
+            description="or click to browse (JPG, JPEG, PNG)"
+            multiple={true}
+            selectedFiles={imageFiles}
+          />
+        </div>
+
+        {/* Excel Files Drop Zone - only show when 'both' mode is selected */}
+        {processMode === 'both' && (
+          <div>
+            <h2 className="text-lg font-medium mb-2 flex items-center gap-2">
+              <FileText size={18} />
+              Excel Files
+            </h2>
+            <FileDropZone
+              onFilesSelected={handleExcelFilesSelected}
+              acceptedTypes=".xlsx,.xls"
+              title="Drop Excel files here"
+              description="or click to browse (XLSX, XLS)"
+              multiple={true}
+              selectedFiles={excelFiles}
+            />
+          </div>
+        )}
+
         {processingError && (
           <p className="text-red-500 mt-2">{processingError}</p>
         )}
@@ -113,13 +175,22 @@ const Index: React.FC = () => {
       {/* Process Button */}
       <Button
         onClick={handleProcessImages}
-        disabled={isProcessing || imageFiles.length === 0}
-        className="w-full"
+        disabled={isProcessing || (processMode === 'images-only' ? imageFiles.length === 0 : (imageFiles.length === 0 || excelFiles.length === 0))}
+        className="w-full flex items-center justify-center gap-2"
       >
-        {isProcessing ? "Processing..." : "Process Images"}
+        {isProcessing ? (
+          <>Processing...</>
+        ) : (
+          <>
+            <Download size={18} />
+            {processMode === 'both' 
+              ? "Process Images & Generate Excel Files" 
+              : "Process Images"}
+          </>
+        )}
       </Button>
       
-      {/* Models loading state - using the proper component reference */}
+      {/* Models loading state */}
       {isLoadingModels && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <Card className="w-96">
@@ -138,13 +209,8 @@ const Index: React.FC = () => {
         </div>
       )}
 
-      {/* Render the face detection loader component correctly */}
+      {/* Render the face detection loader component */}
       {!modelsLoaded && <ImageProcessor.FaceDetectionLoader onLoad={handleModelsLoaded} />}
-
-      {/* Error State */}
-      {processingError && (
-        <div className="mt-4 text-red-500">Error: {processingError}</div>
-      )}
     </div>
   );
 };
