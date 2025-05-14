@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 import JSZip from 'jszip';
@@ -8,11 +9,13 @@ const FaceDetectionLoader: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
   useEffect(() => {
     const loadModels = async () => {
       try {
-        // Load face-api models
+        // Load face-api models from CDN instead of local files
+        const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+        
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-          faceapi.nets.ssdMobilenetv1.loadFromUri('/models')
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL)
         ]);
         
         console.log('Face detection models loaded');
