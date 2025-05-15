@@ -12,7 +12,7 @@ import ExcelProcessor from '@/components/ExcelProcessor';
 import { Download, FileText, Upload } from 'lucide-react';
 
 const Index: React.FC = () => {
-  const [adaptiveRadiusPercentage, setAdaptiveRadiusPercentage] = useState(25);
+  const [adaptiveRadiusPercentage, setAdaptiveRadiusPercentage] = useState(50);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -163,7 +163,7 @@ const Index: React.FC = () => {
         <CardContent>
           <Slider
             defaultValue={[adaptiveRadiusPercentage]}
-            max={50}
+            max={100}
             min={5}
             step={1}
             onValueChange={handleAdaptiveRadiusChange}
