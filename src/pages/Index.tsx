@@ -19,7 +19,7 @@ const Index: React.FC = () => {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
-  const [processMode, setProcessMode] = useState<'images-only' | 'both'>('images-only');
+  const [processMode, setProcessMode] = useState<'images-only' | 'both'>('both');
 
   const handleAdaptiveRadiusChange = useCallback((value: number[]) => {
     setAdaptiveRadiusPercentage(value[0]);
@@ -98,7 +98,7 @@ const Index: React.FC = () => {
       <div className="mb-6">
         <h2 className="text-lg font-medium mb-2">Select Processing Options:</h2>
         <RadioGroup 
-          defaultValue="images-only" 
+          defaultValue="both" 
           className="space-y-2"
           value={processMode}
           onValueChange={handleProcessModeChange}
