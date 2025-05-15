@@ -237,6 +237,8 @@ class ExcelProcessor {
           accessLevel = 4;
         } else if (messHall.includes('junior')) {
           accessLevel = 2;
+        } else if (messHall.includes('labota')) {
+          accessLevel = 14;
         }
       }
       
@@ -248,6 +250,8 @@ class ExcelProcessor {
           vehicleValue = 'Senior Messhall';
         } else if (messHall.includes('junior')) {
           vehicleValue = 'Junior Messhall';
+        } else if (messHall.includes('labota')) {
+          vehicleValue = 'Labota Messhall';
         }
       }
       
