@@ -85,14 +85,24 @@ const Index: React.FC = () => {
     <div className="container mx-auto p-6">
       {/* Header and Description */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-center mb-4">
-          Employee Image Processor
-        </h1>
-        <p className="text-gray-600 text-center">
-          Upload employee images, adjust processing options, and download the
-          processed images in a zip file.
-        </p>
-      </div>
+        {/* MTI Logo */}
+        <div className="flex justify-center mb-4">
+          <img 
+            src="/MTI-removebg-preview.png" 
+            alt="MTI Logo" 
+            className="h-24 w-auto" 
+          />
+        </div>
+  
+  <h1 className="text-3xl font-bold text-center mb-4">
+    Employee Image Processor
+  </h1>
+  <p className="text-gray-600 text-center">
+    Upload employee images, adjust processing options, and download the
+    processed images in a zip file.
+  </p>
+</div>
+
 
       {/* Processing Options */}
       <div className="mb-6">
