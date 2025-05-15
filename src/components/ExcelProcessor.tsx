@@ -258,7 +258,7 @@ class ExcelProcessor {
         row['Emp. No'] || '', // Staff No
         row.Department || '', // Department
         accessLevel, // Access Level
-        'Merdeka Tsingsan Indonesia', // Company
+        'Merdeka Tsingshan Indonesia', // Company
         '', // NRIC/Pass
         '', // Remark
         '', // Email
