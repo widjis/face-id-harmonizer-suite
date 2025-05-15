@@ -3,6 +3,16 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
 class ExcelProcessor {
+  // Define the expected column headers and possible alternatives
+  static readonly expectedColumnMappings = {
+    'Emp. No': ['emp. no', 'emp no', 'employee no', 'employee number', 'id', 'employee id', 'staff id', 'staff no'],
+    'Name': ['name', 'employee name', 'full name', 'staff name'],
+    'Department': ['department', 'dept', 'division'],
+    'Section': ['section', 'unit', 'team', 'group'],
+    'Job Title': ['job title', 'position', 'role', 'designation', 'title'],
+    'MessHall': ['messhall', 'mess hall', 'canteen', 'cafeteria', 'dining']
+  };
+
   static async processExcelFiles(excelFiles: File[]): Promise<void> {
     try {
       // First, combine Excel files
@@ -36,30 +46,119 @@ class ExcelProcessor {
       return Promise.reject(error);
     }
   }
+
+  static findMatchingStandardHeader(header: string): string | null {
+    header = header.trim().toLowerCase();
+    
+    for (const [standardHeader, alternatives] of Object.entries(this.expectedColumnMappings)) {
+      if (alternatives.includes(header)) {
+        return standardHeader;
+      }
+    }
+    
+    return null;
+  }
+  
+  static mapHeaders(originalHeaders: string[]): Record<string, string> {
+    const headerMapping: Record<string, string> = {};
+    const standardHeaders = Object.keys(this.expectedColumnMappings);
+    const unmappedStandardHeaders = new Set(standardHeaders);
+    
+    // First pass - look for exact matches and alternative matches
+    for (const originalHeader of originalHeaders) {
+      // Check if it's a standard header (case insensitive)
+      const standardHeader = standardHeaders.find(
+        std => std.toLowerCase() === originalHeader.toLowerCase()
+      );
+      
+      if (standardHeader) {
+        headerMapping[originalHeader] = standardHeader;
+        unmappedStandardHeaders.delete(standardHeader);
+        continue;
+      }
+      
+      // Check for alternative matches
+      const matchedStandard = this.findMatchingStandardHeader(originalHeader);
+      if (matchedStandard) {
+        headerMapping[originalHeader] = matchedStandard;
+        unmappedStandardHeaders.delete(matchedStandard);
+      }
+    }
+    
+    // If we have unmapped standard headers, try to make best guesses
+    if (unmappedStandardHeaders.size > 0 && originalHeaders.length > 0) {
+      console.warn(`Some headers couldn't be mapped automatically. Making best guesses.`);
+      
+      // Try to map remaining headers based on similarity
+      for (const unmapped of unmappedStandardHeaders) {
+        for (const original of originalHeaders) {
+          if (!Object.values(headerMapping).includes(unmapped)) {
+            // If this original header isn't already mapped to something else
+            if (!Object.keys(headerMapping).includes(original)) {
+              headerMapping[original] = unmapped;
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    return headerMapping;
+  }
   
   static async combineExcelFiles(excelFiles: File[]): Promise<any[]> {
-    // Expected columns to validate Excel structure
-    const expectedColumns = ['Emp. No', 'Name', 'Department', 'Section', 'Job Title', 'MessHall'];
     let combinedData: any[] = [];
+    let processedFiles = 0;
     
     for (const file of excelFiles) {
       try {
-        const data = await this.readExcelFile(file);
+        const rawData = await this.readExcelFile(file);
         
-        // Check if the Excel file has the expected columns
-        const fileColumns = Object.keys(data[0] || {});
-        const hasExpectedColumns = expectedColumns.every(col => fileColumns.includes(col));
-        
-        if (hasExpectedColumns) {
-          combinedData = [...combinedData, ...data];
-        } else {
-          console.warn(`Skipping file '${file.name}' as it does not match the expected columns format.`);
+        if (rawData.length === 0) {
+          console.warn(`File '${file.name}' appears to be empty.`);
+          continue;
         }
+        
+        // Get headers from the first row
+        const fileHeaders = Object.keys(rawData[0]);
+        
+        // Try to map the headers to our expected format
+        const headerMapping = this.mapHeaders(fileHeaders);
+        const mappedHeaders = Object.keys(headerMapping).length;
+        
+        if (mappedHeaders === 0) {
+          console.warn(`Skipping file '${file.name}' as no headers could be mapped.`);
+          continue;
+        }
+        
+        if (mappedHeaders < 6) {
+          console.warn(`File '${file.name}' only has ${mappedHeaders}/6 headers mapped. Attempting to process anyway.`);
+        } else {
+          console.log(`Successfully mapped all headers for file '${file.name}'.`);
+        }
+        
+        // Transform the data using the header mapping
+        const transformedData = rawData.map(row => {
+          const newRow: Record<string, any> = {};
+          
+          // Map each field to the standardized header
+          for (const [originalHeader, standardHeader] of Object.entries(headerMapping)) {
+            if (row[originalHeader] !== undefined) {
+              newRow[standardHeader] = row[originalHeader];
+            }
+          }
+          
+          return newRow;
+        });
+        
+        combinedData = [...combinedData, ...transformedData];
+        processedFiles++;
       } catch (error) {
         console.error(`Error reading Excel file ${file.name}:`, error);
       }
     }
     
+    console.log(`Successfully processed ${processedFiles} out of ${excelFiles.length} files.`);
     return combinedData;
   }
   
