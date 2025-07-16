@@ -40,7 +40,7 @@ class ImageProcessor {
    */
   static extractEmployeeId(filename: string): string {
     // Common separators to try
-    const separators = [' - ', '_', '.', ' ', '-'];
+    const separators = [' - ', '_',' _','_ ','. ', '.',' -','_',' '];
     
     // Try each separator to find the best match
     for (const separator of separators) {
