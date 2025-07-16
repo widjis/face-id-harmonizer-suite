@@ -34,6 +34,75 @@ const FaceDetectionLoader: React.FC<{ onLoad: () => void }> = ({ onLoad }) => {
 class ImageProcessor {
   static FaceDetectionLoader = FaceDetectionLoader;
 
+  /**
+   * Extracts employee ID from filename with flexible separator detection
+   * Handles patterns like: MTIxxxxx - Name, MTIxxxxxx_Name, MTIxxxxx.Name, etc.
+   */
+  static extractEmployeeId(filename: string): string {
+    // Common separators to try
+    const separators = [' - ', '_', '.', ' ', '-'];
+    
+    // Try each separator to find the best match
+    for (const separator of separators) {
+      const parts = filename.split(separator);
+      if (parts.length >= 2) {
+        const potentialId = parts[0].trim();
+        
+        // Check if the first part looks like an employee ID
+        // Pattern: starts with MTI followed by numbers, or just numbers
+        if (this.isValidEmployeeId(potentialId)) {
+          return potentialId;
+        }
+      }
+    }
+    
+    // If no separator found, check if the whole filename is a valid ID
+    const trimmedFilename = filename.trim();
+    if (this.isValidEmployeeId(trimmedFilename)) {
+      return trimmedFilename;
+    }
+    
+    // Fallback: try to extract MTI pattern or numbers from anywhere in the filename
+    const mtiMatch = filename.match(/MTI\d+/i);
+    if (mtiMatch) {
+      return mtiMatch[0];
+    }
+    
+    // Last resort: extract first sequence of numbers
+    const numberMatch = filename.match(/\d+/);
+    if (numberMatch) {
+      return numberMatch[0];
+    }
+    
+    // If all else fails, return the original filename
+    return filename;
+  }
+  
+  /**
+   * Validates if a string looks like a valid employee ID
+   */
+  static isValidEmployeeId(id: string): boolean {
+    // Remove whitespace
+    const cleanId = id.trim();
+    
+    // Check for MTI pattern (case insensitive)
+    if (/^MTI\d+$/i.test(cleanId)) {
+      return true;
+    }
+    
+    // Check for pure numeric ID (at least 3 digits)
+    if (/^\d{3,}$/.test(cleanId)) {
+      return true;
+    }
+    
+    // Check for alphanumeric ID (at least 3 characters)
+    if (/^[A-Za-z0-9]{3,}$/.test(cleanId) && /\d/.test(cleanId)) {
+      return true;
+    }
+    
+    return false;
+  }
+
   static async processImages(imageFiles: File[], adaptiveRadiusPercentage: number): Promise<void> {
     const zip = new JSZip();
     const processedFolder = zip.folder("processed_images");
@@ -50,14 +119,9 @@ class ImageProcessor {
         // Extract employee ID from filename for the output
         const fileName = file.name;
         const fileNameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
-        const parts = fileNameWithoutExt.split(' - ');
+        const employeeId = this.extractEmployeeId(fileNameWithoutExt);
         
-        let outputFileName;
-        if (parts.length === 2) {
-          outputFileName = `${parts[0]}.jpg`;
-        } else {
-          outputFileName = `${fileNameWithoutExt}.jpg`;
-        }
+        const outputFileName = `${employeeId}.jpg`;
         
         // Add to zip
         processedFolder.file(outputFileName, processedImage);
