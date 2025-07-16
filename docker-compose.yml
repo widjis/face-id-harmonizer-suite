@@ -8,7 +8,7 @@ services:
       target: production
     container_name: face-id-harmonizer-app
     ports:
-      - "8080:80"
+      - "9003:80"
     restart: unless-stopped
     environment:
       - NODE_ENV=production
