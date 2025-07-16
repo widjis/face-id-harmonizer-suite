@@ -1,0 +1,33 @@
+# Development Dockerfile for Face ID Harmonizer Suite
+FROM node:20-alpine as development
+
+WORKDIR /app
+
+# Install dependencies for development
+RUN apk add --no-cache git
+
+# Copy package files
+COPY package*.json ./
+COPY bun.lockb ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nextjs:nodejs /app
+
+# Switch to non-root user
+USER nextjs
+
+# Expose development port
+EXPOSE 3000
+
+# Start development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

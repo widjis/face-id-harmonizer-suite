@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  face-id-harmonizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: face-id-harmonizer-app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Optional: Mount logs for debugging
+      - ./logs:/var/log/nginx
+    networks:
+      - face-id-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Development service (optional)
+  face-id-harmonizer-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: face-id-harmonizer-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - face-id-network
+    profiles:
+      - dev
+
+networks:
+  face-id-network:
+    driver: bridge
+
+volumes:
+  node_modules:
+    driver: local

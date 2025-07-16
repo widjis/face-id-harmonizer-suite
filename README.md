@@ -53,98 +53,39 @@ npm run dev
 
 ## Docker Deployment
 
-To deploy this application using Docker, follow these steps:
+This project includes a complete Docker setup with production-ready configurations.
+
+### Quick Start
+
+```sh
+# Production deployment
+docker-compose up -d
+
+# Development with hot-reloading
+docker-compose --profile dev up -d face-id-harmonizer-dev
+```
+
+Access the application:
+- **Production**: http://localhost:8080
+- **Development**: http://localhost:3000
+
+### Features
+- ✅ Multi-stage builds for optimized production images
+- ✅ Nginx with security headers and gzip compression
+- ✅ Development environment with hot-reloading
+- ✅ Health checks and monitoring
+- ✅ Non-root user for enhanced security
+- ✅ Comprehensive logging and debugging
+
+### Complete Documentation
+
+For detailed Docker setup instructions, troubleshooting, and deployment options, see:
+
+📖 **[DOCKER_SETUP.md](./DOCKER_SETUP.md)** - Complete Docker guide
 
 ### Prerequisites
-- Docker installed on your machine ([Install Docker](https://docs.docker.com/get-docker/))
-- Docker Compose (optional, for easier management)
-
-### Step 1: Create a Dockerfile
-Create a file named `Dockerfile` in the root directory of your project with the following content:
-
-```dockerfile
-# Build stage
-FROM node:20-alpine as build
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-RUN npm ci
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN npm run build
-
-# Production stage
-FROM nginx:alpine
-
-# Copy built assets from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom nginx config if needed
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-### Step 2: Create a .dockerignore file
-Create a `.dockerignore` file in the root directory to exclude unnecessary files:
-
-```
-node_modules
-npm-debug.log
-.git
-.github
-.gitignore
-README.md
-```
-
-### Step 3: Build the Docker image
-Run the following command from the project root directory:
-
-```sh
-docker build -t id-card-image-converter .
-```
-
-### Step 4: Run the Docker container
-After the build completes, run the container:
-
-```sh
-docker run -p 8080:80 --name id-card-app id-card-image-converter
-```
-
-This will map port 8080 on your host to port 80 in the container. You can access the application at http://localhost:8080.
-
-### Step 5 (Optional): Using Docker Compose
-For easier management, you can create a `docker-compose.yml` file:
-
-```yaml
-version: '3'
-services:
-  app:
-    build: .
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-```
-
-Then run:
-
-```sh
-docker-compose up -d
-```
-
-To stop the container:
-
-```sh
-docker-compose down
-```
+- Docker Desktop ([Install here](https://docs.docker.com/get-docker/))
+- Docker Compose (included with Docker Desktop)
 
 ## What technologies are used for this project?
 
