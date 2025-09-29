@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import database from '@/config/database';
 import logger from '@/utils/logger';
+import { AuthenticationError, AuthorizationError } from './errorHandler';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
 
@@ -25,11 +26,7 @@ export const authenticateToken = async (
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      res.status(401).json({
-        success: false,
-        message: 'Access token is required'
-      });
-      return;
+      throw new AuthenticationError('Access token is required');
     }
 
     // Verify token
@@ -43,11 +40,7 @@ export const authenticateToken = async (
     `, { userId: decoded.userId });
 
     if (userResult.recordset.length === 0) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid token - user not found'
-      });
-      return;
+      throw new AuthenticationError('Invalid token - user not found');
     }
 
     const user = userResult.recordset[0];
@@ -63,18 +56,17 @@ export const authenticateToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
+      next(new AuthenticationError('Invalid token'));
+      return;
+    }
+
+    if (error instanceof AuthenticationError) {
+      next(error);
       return;
     }
 
     logger.error('Authentication middleware error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    next(error);
   }
 };
 
@@ -82,20 +74,14 @@ export const authenticateToken = async (
 export const requireRole = (roles: string | string[]) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
+      next(new AuthenticationError('Authentication required'));
       return;
     }
 
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
     
     if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({
-        success: false,
-        message: 'Insufficient permissions'
-      });
+      next(new AuthorizationError('Insufficient permissions'));
       return;
     }
 

@@ -18,6 +18,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
+import { apiClient, type Employee, formatApiError } from '@/lib/apiClient';
 
 export interface EmployeeCardMapping {
   employeeId: string;
@@ -185,7 +186,7 @@ export const CardMappingDialog: React.FC<CardMappingDialogProps> = ({
     }
   };
 
-  const handleCardNumberInput = (cardNumber: string) => {
+  const handleCardNumberInput = async (cardNumber: string) => {
     if (!cardNumber.trim()) {
       toast.error('Please enter a valid card number.');
       return;
@@ -198,13 +199,22 @@ export const CardMappingDialog: React.FC<CardMappingDialogProps> = ({
       return;
     }
 
-    onCardMapped(currentEmployee.employeeId, cleanCardNumber);
-    setManualCardNumber('');
-    
-    toast.success(`Card mapped for ${currentEmployee.employeeName}`);
-    
-    // Move to next pending employee
-    moveToNextEmployee();
+    try {
+      // Call the API to assign the card to the employee
+      await apiClient.assignCardToEmployee(currentEmployee.employeeId, cleanCardNumber);
+      
+      onCardMapped(currentEmployee.employeeId, cleanCardNumber);
+      setManualCardNumber('');
+      
+      toast.success(`Card ${cleanCardNumber} mapped for ${currentEmployee.employeeName}`);
+      
+      // Move to next pending employee
+      moveToNextEmployee();
+    } catch (error) {
+      const errorMessage = formatApiError(error);
+      toast.error(`Failed to map card: ${errorMessage}`);
+      console.error('Card mapping error:', error);
+    }
   };
 
   const handleManualSubmit = () => {

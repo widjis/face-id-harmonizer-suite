@@ -3,10 +3,13 @@ import { v4 as uuidv4 } from 'uuid';
 import database from '@/config/database';
 import logger, { AuditLogger } from '@/utils/logger';
 import { authenticateToken, requireAdmin, AuthenticatedRequest } from '@/middleware/auth';
+import vaultApiService from '@/services/vaultApiService';
 import { 
   VaultConfiguration, 
   CreateVaultConfigRequest, 
-  ApiResponse 
+  ApiResponse,
+  VaultCardProfile,
+  VaultApiResponse
 } from '@/types';
 
 const router = express.Router();
@@ -462,6 +465,353 @@ router.post('/:id/activate', requireAdmin, async (req: AuthenticatedRequest, res
     res.status(500).json({
       success: false,
       message: 'Failed to activate vault configuration'
+    });
+  }
+});
+
+// POST /api/vault/test-connection - Test connection to active vault configuration
+router.post('/test-connection', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    
+    const result = await vaultApiService.testConnection(userId);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        message: result.error || 'Failed to connect to Vault system',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error('Error testing vault connection:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test vault connection'
+    });
+  }
+});
+
+// POST /api/vault/cards - Create a new card in the Vault system
+router.post('/cards', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { cardProfile, batchId, employeeId }: { 
+      cardProfile: VaultCardProfile; 
+      batchId?: string; 
+      employeeId?: string; 
+    } = req.body;
+
+    // Validate required fields
+    if (!cardProfile || !cardProfile.CardNumber || !cardProfile.FirstName || 
+        !cardProfile.LastName || !cardProfile.EmployeeId) {
+      res.status(400).json({
+        success: false,
+        message: 'Card number, first name, last name, and employee ID are required'
+      });
+      return;
+    }
+
+    const result = await vaultApiService.addCard(cardProfile, userId, batchId, employeeId);
+    
+    if (result.success) {
+      // Update employee record if employeeId is provided
+      if (employeeId) {
+        try {
+          await database.executeQuery(`
+            UPDATE Employees 
+            SET VaultCardCreated = 1, VaultCardId = @cardId, UpdatedAt = GETUTCDATE()
+            WHERE Id = @employeeId
+          `, { 
+            cardId: result.cardId, 
+            employeeId 
+          });
+
+          // Log audit trail
+          await AuditLogger.audit({
+            userId,
+            action: 'VAULT_API_CALL',
+            entityType: 'Employee',
+            entityId: employeeId,
+            details: {
+              action: 'CREATE_VAULT_CARD',
+              cardNumber: cardProfile.CardNumber,
+              cardId: result.cardId
+            },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || ''
+          });
+        } catch (dbError) {
+          logger.error('Failed to update employee record after card creation:', dbError);
+          // Don't fail the request as the card was created successfully
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        data: {
+          cardId: result.cardId,
+          cardNumber: cardProfile.CardNumber
+        },
+        message: result.message,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to create card in Vault system',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error('Error creating vault card:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create vault card'
+    });
+  }
+});
+
+// GET /api/vault/cards/:cardNumber - Retrieve card information from Vault system
+router.get('/cards/:cardNumber', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { cardNumber } = req.params;
+    const { batchId, employeeId } = req.query;
+
+    if (!cardNumber) {
+      res.status(400).json({
+        success: false,
+        message: 'Card number is required'
+      });
+      return;
+    }
+
+    const result = await vaultApiService.getCard(
+      cardNumber, 
+      userId, 
+      batchId as string, 
+      employeeId as string
+    );
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        data: {
+          cardId: result.cardId,
+          cardProfile: result.cardProfile
+        },
+        message: result.message,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: result.error || 'Card not found in Vault system',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error('Error retrieving vault card:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve vault card'
+    });
+  }
+});
+
+// DELETE /api/vault/cards/:cardNumber - Delete card from Vault system
+router.delete('/cards/:cardNumber', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { cardNumber } = req.params;
+    const { batchId, employeeId } = req.query;
+
+    if (!cardNumber) {
+      res.status(400).json({
+        success: false,
+        message: 'Card number is required'
+      });
+      return;
+    }
+
+    const result = await vaultApiService.deleteCard(
+      cardNumber, 
+      userId, 
+      batchId as string, 
+      employeeId as string
+    );
+    
+    if (result.success) {
+      // Update employee record if employeeId is provided
+      if (employeeId) {
+        try {
+          await database.executeQuery(`
+            UPDATE Employees 
+            SET VaultCardCreated = 0, VaultCardId = NULL, UpdatedAt = GETUTCDATE()
+            WHERE Id = @employeeId
+          `, { employeeId });
+
+          // Log audit trail
+          await AuditLogger.audit({
+            userId,
+            action: 'VAULT_API_CALL',
+            entityType: 'Employee',
+            entityId: employeeId as string,
+            details: {
+              action: 'DELETE_VAULT_CARD',
+              cardNumber
+            },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || ''
+          });
+        } catch (dbError) {
+          logger.error('Failed to update employee record after card deletion:', dbError);
+          // Don't fail the request as the card was deleted successfully
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          cardId: result.cardId,
+          cardNumber
+        },
+        message: result.message,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: result.error || 'Failed to delete card from Vault system',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    logger.error('Error deleting vault card:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete vault card'
+    });
+  }
+});
+
+// POST /api/vault/cards/batch - Batch process multiple card operations
+router.post('/cards/batch', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+  try {
+    const userId = req.user!.userId;
+    const { operations, batchId }: { 
+      operations: Array<{
+        operation: 'add' | 'delete';
+        cardProfile?: VaultCardProfile;
+        cardNumber?: string;
+        employeeId?: string;
+      }>;
+      batchId?: string;
+    } = req.body;
+
+    if (!operations || !Array.isArray(operations) || operations.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: 'Operations array is required and cannot be empty'
+      });
+      return;
+    }
+
+    // Validate operations
+    for (const op of operations) {
+      if (op.operation === 'add' && !op.cardProfile) {
+        res.status(400).json({
+          success: false,
+          message: 'Card profile is required for add operations'
+        });
+        return;
+      }
+      if (op.operation === 'delete' && !op.cardNumber) {
+        res.status(400).json({
+          success: false,
+          message: 'Card number is required for delete operations'
+        });
+        return;
+      }
+    }
+
+    const results = await vaultApiService.batchProcessCards(operations, userId, batchId);
+    
+    // Update employee records for successful operations
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      const operation = operations[i];
+      
+      if (result.success && operation.employeeId) {
+        try {
+          if (operation.operation === 'add') {
+            await database.executeQuery(`
+              UPDATE Employees 
+              SET VaultCardCreated = 1, VaultCardId = @cardId, UpdatedAt = GETUTCDATE()
+              WHERE Id = @employeeId
+            `, { 
+              cardId: result.cardId, 
+              employeeId: operation.employeeId 
+            });
+          } else if (operation.operation === 'delete') {
+            await database.executeQuery(`
+              UPDATE Employees 
+              SET VaultCardCreated = 0, VaultCardId = NULL, UpdatedAt = GETUTCDATE()
+              WHERE Id = @employeeId
+            `, { employeeId: operation.employeeId });
+          }
+
+          // Log audit trail
+          await AuditLogger.audit({
+            userId,
+            action: 'VAULT_API_CALL',
+            entityType: 'Employee',
+            entityId: operation.employeeId,
+            details: {
+              action: `BATCH_${operation.operation.toUpperCase()}_VAULT_CARD`,
+              cardNumber: result.cardNumber,
+              batchId
+            },
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent') || ''
+          });
+        } catch (dbError) {
+          logger.error(`Failed to update employee record for ${operation.operation} operation:`, dbError);
+          // Don't fail the request as the vault operation was successful
+        }
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.length - successCount;
+
+    res.json({
+      success: failureCount === 0,
+      data: {
+        results,
+        summary: {
+          total: results.length,
+          successful: successCount,
+          failed: failureCount
+        }
+      },
+      message: failureCount === 0 
+        ? `All ${results.length} operations completed successfully`
+        : `${successCount} operations succeeded, ${failureCount} failed`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error processing batch card operations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process batch card operations'
     });
   }
 });

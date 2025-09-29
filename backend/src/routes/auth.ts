@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import database from '@/config/database';
 import logger, { AuditLogger } from '@/utils/logger';
 import { CreateUserRequest, LoginRequest, AuthResponse, User } from '@/types';
+import { authValidations } from '@/middleware/validation';
+import { authenticateToken } from '@/middleware/auth';
 
 const router = Router();
 
@@ -29,8 +31,97 @@ const verifyPassword = async (password: string, hashedPassword: string): Promise
   return await bcrypt.compare(password, hashedPassword);
 };
 
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 minLength: 3
+ *                 maxLength: 50
+ *                 pattern: '^[a-zA-Z0-9_]+$'
+ *                 example: 'john_doe'
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 maxLength: 100
+ *                 example: 'john@example.com'
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *                 maxLength: 255
+ *                 pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]'
+ *                 example: 'SecurePass123!'
+ *               firstName:
+ *                 type: string
+ *                 maxLength: 50
+ *                 example: 'John'
+ *               lastName:
+ *                 type: string
+ *                 maxLength: 50
+ *                 example: 'Doe'
+ *               department:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'Engineering'
+ *               role:
+ *                 type: string
+ *                 enum: [admin, user, viewer]
+ *                 default: user
+ *                 example: 'user'
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 'User registered successfully'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     token:
+ *                       type: string
+ *                       example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       409:
+ *         description: User already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               message: 'User with this username or email already exists'
+ *               code: 'CONFLICT'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Register new user
-router.post('/register', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/register', authValidations.register, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { username, email, password, firstName, lastName, department, role = 'user' }: CreateUserRequest = req.body;
 
@@ -132,8 +223,70 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Authenticate user and get access token
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *               - password
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username or email address
+ *                 example: 'john_doe'
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: 'password123'
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 'Login successful'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                     token:
+ *                       type: string
+ *                       example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               success: false
+ *               message: 'Invalid credentials'
+ *               code: 'AUTHENTICATION_ERROR'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Login user
-router.post('/login', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/login', authValidations.login, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { username, password } = req.body;
 
@@ -215,8 +368,34 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction): P
   }
 });
 
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current user profile
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Get current user profile
-router.get('/me', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/me', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Extract user ID from JWT token (assuming middleware sets req.user)
     const userId = (req as any).user?.userId;
@@ -266,8 +445,35 @@ router.get('/me', async (req: Request, res: Response, next: NextFunction): Promi
   }
 });
 
-// Logout (mainly for audit trail)
-router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout user (client-side token invalidation)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: 'Logout successful'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+// Logout user (client-side token invalidation)
+router.post('/logout', authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 

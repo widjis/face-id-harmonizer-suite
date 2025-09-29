@@ -3,11 +3,65 @@ import { v4 as uuidv4 } from 'uuid';
 import database from '@/config/database';
 import logger, { AuditLogger } from '@/utils/logger';
 import { ProcessingBatch, CreateBatchRequest, UpdateBatchRequest } from '@/types';
+import { authenticateToken } from '@/middleware/auth';
+import { batchValidations } from '@/middleware/validation';
 
 const router = Router();
 
+/**
+ * @swagger
+ * /api/batches:
+ *   get:
+ *     summary: Get all batches for the current user
+ *     tags: [Batches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, processing, completed, failed]
+ *         description: Filter by batch status
+ *     responses:
+ *       200:
+ *         description: List of batches retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Batch'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/PaginationInfo'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Get all batches for the current user
-router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     
@@ -40,8 +94,51 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
   }
 });
 
+/**
+ * @swagger
+ * /api/batches/{id}:
+ *   get:
+ *     summary: Get a specific batch by ID
+ *     tags: [Batches]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Batch ID
+ *     responses:
+ *       200:
+ *         description: Batch retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/Batch'
+ *                     - type: object
+ *                       properties:
+ *                         employees:
+ *                           type: array
+ *                           items:
+ *                             $ref: '#/components/schemas/Employee'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       404:
+ *         $ref: '#/components/responses/NotFoundError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
 // Get a specific batch by ID
-router.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/:id', authenticateToken, batchValidations.get, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const batchId = req.params.id;
@@ -89,8 +186,59 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
   }
 });
 
-// Create a new batch
-router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * @swagger
+ * /api/batches:
+ *   post:
+ *     summary: Create a new batch
+ *     tags: [Batches]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 255
+ *                 description: Batch name
+ *                 example: "Employee Batch 2024-01"
+ *               description:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Optional batch description
+ *                 example: "January 2024 employee processing batch"
+ *               vaultConfigId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional Vault configuration ID
+ *     responses:
+ *       201:
+ *         description: Batch created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/Batch'
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/UnauthorizedError'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+router.post('/', authenticateToken, batchValidations.create, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const { name, description, vaultConfigId }: CreateBatchRequest = req.body;

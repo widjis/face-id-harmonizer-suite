@@ -3,8 +3,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import dotenv from 'dotenv';
 import database from '@/config/database';
 import logger from '@/utils/logger';
+
+// Import error handling middleware
+import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
+import setupSwagger from './config/swagger';
 
 // Import routes
 import authRoutes from '@/routes/auth';
@@ -13,6 +18,9 @@ import employeeRoutes from '@/routes/employees';
 import vaultRoutes from '@/routes/vault';
 import auditRoutes from './routes/audit';
 import uploadRoutes from './routes/upload';
+
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -52,6 +60,9 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Setup Swagger documentation
+setupSwagger(app);
 
 // Static file serving
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -103,17 +114,11 @@ app.use('/api/*', (req, res) => {
   });
 });
 
+// 404 handler for API routes
+app.use('/api/*', notFoundHandler);
+
 // Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  logger.error('Unhandled error:', err);
-  
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    timestamp: new Date().toISOString(),
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+app.use(errorHandler);
 
 // Start server
 const startServer = async () => {
