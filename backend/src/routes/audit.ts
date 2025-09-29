@@ -11,9 +11,218 @@ import {
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AuditTrailEntry:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Unique identifier for the audit entry
+ *         userId:
+ *           type: string
+ *           description: ID of the user who performed the action
+ *         action:
+ *           type: string
+ *           description: Action performed (CREATE, UPDATE, DELETE, LOGIN, etc.)
+ *         entityType:
+ *           type: string
+ *           description: Type of entity affected (User, Employee, Batch, etc.)
+ *         entityId:
+ *           type: string
+ *           description: ID of the affected entity
+ *         oldValues:
+ *           type: object
+ *           description: Previous values before the change
+ *         newValues:
+ *           type: object
+ *           description: New values after the change
+ *         ipAddress:
+ *           type: string
+ *           description: IP address of the user
+ *         userAgent:
+ *           type: string
+ *           description: User agent string
+ *         details:
+ *           type: string
+ *           description: Additional details about the action
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Timestamp when the action occurred
+ *         username:
+ *           type: string
+ *           description: Username of the user who performed the action
+ *         userEmail:
+ *           type: string
+ *           description: Email of the user who performed the action
+ *         userFullName:
+ *           type: string
+ *           description: Full name of the user who performed the action
+ *     AuditStats:
+ *       type: object
+ *       properties:
+ *         actionStats:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               Action:
+ *                 type: string
+ *               count:
+ *                 type: integer
+ *         entityStats:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               EntityType:
+ *                 type: string
+ *               count:
+ *                 type: integer
+ *         dailyActivity:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               count:
+ *                 type: integer
+ *         topUsers:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               Username:
+ *                 type: string
+ *               Email:
+ *                 type: string
+ *               activityCount:
+ *                 type: integer
+ *         period:
+ *           type: object
+ *           properties:
+ *             days:
+ *               type: integer
+ *             from:
+ *               type: string
+ *               format: date-time
+ *             to:
+ *               type: string
+ *               format: date-time
+ */
+
 // Apply authentication to all routes
 router.use(authenticateToken);
 
+/**
+ * @swagger
+ * /api/audit:
+ *   get:
+ *     summary: Get audit trail entries with pagination and filtering
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for filtering audit entries
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [CreatedAt, Action, EntityType, Username]
+ *           default: CreatedAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *       - in: query
+ *         name: filter[action]
+ *         schema:
+ *           type: string
+ *         description: Filter by action type
+ *       - in: query
+ *         name: filter[entityType]
+ *         schema:
+ *           type: string
+ *         description: Filter by entity type
+ *       - in: query
+ *         name: filter[userId]
+ *         schema:
+ *           type: string
+ *         description: Filter by user ID
+ *       - in: query
+ *         name: filter[dateFrom]
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter entries from this date
+ *       - in: query
+ *         name: filter[dateTo]
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter entries to this date
+ *     responses:
+ *       200:
+ *         description: Audit trail retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/AuditTrailEntry'
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/audit - Get audit trail entries with pagination and filtering
 router.get('/', requireAdmin, async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -157,6 +366,47 @@ router.get('/', requireAdmin, async (req: AuthenticatedRequest, res: express.Res
   }
 });
 
+/**
+ * @swagger
+ * /api/audit/{id}:
+ *   get:
+ *     summary: Get specific audit entry by ID
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Audit entry ID
+ *     responses:
+ *       200:
+ *         description: Audit entry retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/AuditTrailEntry'
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Audit entry not found
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/audit/:id - Get specific audit entry
 router.get('/:id', requireAdmin, async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -231,6 +481,76 @@ router.get('/:id', requireAdmin, async (req: AuthenticatedRequest, res: express.
   }
 });
 
+/**
+ * @swagger
+ * /api/audit/entity/{entityType}/{entityId}:
+ *   get:
+ *     summary: Get audit trail for specific entity
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: entityType
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Type of entity (User, Employee, Batch, etc.)
+ *       - in: path
+ *         name: entityId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the entity
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: Entity audit trail retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/AuditTrailEntry'
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/audit/entity/:entityType/:entityId - Get audit trail for specific entity
 router.get('/entity/:entityType/:entityId', requireAdmin, async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -319,6 +639,45 @@ router.get('/entity/:entityType/:entityId', requireAdmin, async (req: Authentica
   }
 });
 
+/**
+ * @swagger
+ * /api/audit/stats:
+ *   get:
+ *     summary: Get audit statistics and analytics
+ *     tags: [Audit]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *         description: Number of days to include in statistics
+ *     responses:
+ *       200:
+ *         description: Audit statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/AuditStats'
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/audit/stats - Get audit statistics
 router.get('/stats', requireAdmin, async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {

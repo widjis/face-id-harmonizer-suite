@@ -4,6 +4,10 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST before importing database
+dotenv.config({ path: path.join(__dirname, '../.env') });
+
 import database from '@/config/database';
 import logger from '@/utils/logger';
 
@@ -18,9 +22,6 @@ import employeeRoutes from '@/routes/employees';
 import vaultRoutes from '@/routes/vault';
 import auditRoutes from './routes/audit';
 import uploadRoutes from './routes/upload';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

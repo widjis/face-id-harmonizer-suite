@@ -7,6 +7,85 @@ import database from '../config/database';
 import { MulterRequest, ApiResponse, FileUpload, PaginatedResponse } from '../types';
 import { authenticateToken } from '../middleware/auth';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     FileUpload:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *           description: Unique identifier for the file
+ *         batchId:
+ *           type: string
+ *           format: uuid
+ *           description: Optional batch identifier for grouping files
+ *           nullable: true
+ *         fileName:
+ *           type: string
+ *           description: Generated filename on server
+ *         originalName:
+ *           type: string
+ *           description: Original filename from upload
+ *         fileType:
+ *           type: string
+ *           enum: [excel, image]
+ *           description: Type of file uploaded
+ *         fileSize:
+ *           type: integer
+ *           description: File size in bytes
+ *         filePath:
+ *           type: string
+ *           description: Server file path
+ *         mimeType:
+ *           type: string
+ *           description: MIME type of the file
+ *         uploadedBy:
+ *           type: string
+ *           format: uuid
+ *           description: ID of user who uploaded the file
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Upload timestamp
+ *       required:
+ *         - id
+ *         - fileName
+ *         - originalName
+ *         - fileType
+ *         - fileSize
+ *         - filePath
+ *         - mimeType
+ *         - uploadedBy
+ *         - createdAt
+ *     
+ *     FileUploadList:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         data:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/FileUpload'
+ *         pagination:
+ *           type: object
+ *           properties:
+ *             page:
+ *               type: integer
+ *             limit:
+ *               type: integer
+ *             total:
+ *               type: integer
+ *             totalPages:
+ *               type: integer
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ */
+
 const router = Router();
 
 // Ensure upload directories exist
@@ -121,6 +200,75 @@ const saveFileToDatabase = async (
 };
 
 // Upload single Excel file
+/**
+ * @swagger
+ * /api/upload/excel:
+ *   post:
+ *     summary: Upload Excel file
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               excel:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file to upload (.xls, .xlsx)
+ *               batchId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional batch identifier for grouping files
+ *             required:
+ *               - excel
+ *     responses:
+ *       201:
+ *         description: Excel file uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/FileUpload'
+ *                 message:
+ *                   type: string
+ *                   example: "Excel file uploaded successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Bad request - No file uploaded or invalid file type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       413:
+ *         description: Payload too large - File exceeds 10MB limit
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/excel', authenticateToken, uploadExcel.single('excel'), async (req: MulterRequest, res: Response) => {
   try {
     if (!req.file) {
@@ -173,6 +321,80 @@ router.post('/excel', authenticateToken, uploadExcel.single('excel'), async (req
 });
 
 // Upload multiple image files
+/**
+ * @swagger
+ * /api/upload/images:
+ *   post:
+ *     summary: Upload multiple image files
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Image files to upload (jpeg, jpg, png, gif, webp)
+ *                 maxItems: 50
+ *               batchId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Optional batch identifier for grouping files
+ *             required:
+ *               - images
+ *     responses:
+ *       201:
+ *         description: Image files uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/FileUpload'
+ *                 message:
+ *                   type: string
+ *                   example: "5 image files uploaded successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Bad request - No files uploaded or invalid file types
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       413:
+ *         description: Payload too large - File exceeds 5MB limit per image
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.post('/images', authenticateToken, uploadImages.array('images', 50), async (req: MulterRequest, res: Response) => {
   try {
     const files = req.files as Express.Multer.File[];
@@ -231,6 +453,67 @@ router.post('/images', authenticateToken, uploadImages.array('images', 50), asyn
 });
 
 // Get uploaded files with pagination and filtering
+/**
+ * @swagger
+ * /api/upload:
+ *   get:
+ *     summary: Get uploaded files with pagination and filtering
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
+ *         description: Number of files per page
+ *       - in: query
+ *         name: fileType
+ *         schema:
+ *           type: string
+ *           enum: [excel, image]
+ *         description: Filter by file type
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Filter by batch ID
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search in original filename or server filename
+ *     responses:
+ *       200:
+ *         description: Files retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/FileUploadList'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/', authenticateToken, async (req: MulterRequest, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -298,6 +581,58 @@ router.get('/', authenticateToken, async (req: MulterRequest, res: Response) => 
 });
 
 // Delete uploaded file
+/**
+ * @swagger
+ * /api/upload/{fileId}:
+ *   delete:
+ *     summary: Delete uploaded file
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the file to delete
+ *     responses:
+ *       200:
+ *         description: File deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "File deleted successfully"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: File not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.delete('/:fileId', authenticateToken, async (req: MulterRequest, res: Response) => {
   try {
     const { fileId } = req.params;
@@ -367,6 +702,82 @@ router.delete('/:fileId', authenticateToken, async (req: MulterRequest, res: Res
 });
 
 // Download file
+/**
+ * @swagger
+ * /api/upload/download/{fileId}:
+ *   get:
+ *     summary: Download uploaded file
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID of the file to download
+ *     responses:
+ *       200:
+ *         description: File downloaded successfully
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/vnd.ms-excel:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/png:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/gif:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/webp:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *             description: Attachment with original filename
+ *           Content-Type:
+ *             schema:
+ *               type: string
+ *             description: MIME type of the file
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: File not found or physical file missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
 router.get('/download/:fileId', authenticateToken, async (req: MulterRequest, res: Response) => {
   try {
     const { fileId } = req.params;

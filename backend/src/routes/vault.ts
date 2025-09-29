@@ -17,6 +17,94 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(authenticateToken);
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     VaultConfiguration:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Unique configuration ID
+ *         name:
+ *           type: string
+ *           description: Configuration name
+ *         host:
+ *           type: string
+ *           description: Vault server host
+ *         port:
+ *           type: integer
+ *           description: Vault server port
+ *         isSecure:
+ *           type: boolean
+ *           description: Whether to use HTTPS
+ *         apiVersion:
+ *           type: string
+ *           description: API version
+ *         isActive:
+ *           type: boolean
+ *           description: Whether this configuration is active
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     VaultCardProfile:
+ *       type: object
+ *       properties:
+ *         cardNo:
+ *           type: string
+ *           description: Card number
+ *         name:
+ *           type: string
+ *           description: Cardholder name
+ *         department:
+ *           type: string
+ *           description: Department
+ *         email:
+ *           type: string
+ *           description: Email address
+ *         photo:
+ *           type: string
+ *           description: Base64 encoded photo
+ */
+
+/**
+ * @swagger
+ * /api/vault:
+ *   get:
+ *     summary: Get all vault configurations
+ *     tags: [Vault]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Vault configurations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/VaultConfiguration'
+ *                 message:
+ *                   type: string
+ *                   example: Vault configurations retrieved successfully
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/vault - Get all vault configurations
 router.get('/', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -64,6 +152,51 @@ router.get('/', async (req: AuthenticatedRequest, res: express.Response): Promis
   }
 });
 
+/**
+ * @swagger
+ * /api/vault/active:
+ *   get:
+ *     summary: Get active vault configuration
+ *     tags: [Vault]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active vault configuration retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/VaultConfiguration'
+ *                 message:
+ *                   type: string
+ *                   example: Active vault configuration retrieved successfully
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: No active vault configuration found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: No active vault configuration found
+ *       500:
+ *         description: Internal server error
+ */
 // GET /api/vault/active - Get active vault configuration
 router.get('/active', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -178,6 +311,88 @@ router.get('/:id', async (req: AuthenticatedRequest, res: express.Response): Pro
   }
 });
 
+/**
+ * @swagger
+ * /api/vault:
+ *   post:
+ *     summary: Create new vault configuration (Admin only)
+ *     tags: [Vault]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - host
+ *               - port
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Configuration name
+ *               host:
+ *                 type: string
+ *                 description: Vault server host
+ *               port:
+ *                 type: integer
+ *                 description: Vault server port
+ *               isSecure:
+ *                 type: boolean
+ *                 description: Whether to use HTTPS
+ *                 default: false
+ *               apiVersion:
+ *                 type: string
+ *                 description: API version
+ *                 default: v1
+ *               isActive:
+ *                 type: boolean
+ *                 description: Set as active configuration
+ *                 default: false
+ *     responses:
+ *       201:
+ *         description: Vault configuration created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                 message:
+ *                   type: string
+ *                   example: Vault configuration created successfully
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Bad request - missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Name, host, and port are required
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Admin access required
+ *       500:
+ *         description: Internal server error
+ */
 // POST /api/vault - Create new vault configuration (Admin only)
 router.post('/', requireAdmin, async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
@@ -499,6 +714,73 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res: express.R
 });
 
 // POST /api/vault/cards - Create a new card in the Vault system
+/**
+ * @swagger
+ * /api/vault/cards:
+ *   post:
+ *     summary: Create a new vault card
+ *     tags: [Vault]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cardProfile
+ *             properties:
+ *               cardProfile:
+ *                 $ref: '#/components/schemas/VaultCardProfile'
+ *               batchId:
+ *                 type: string
+ *                 description: Associated batch ID
+ *               employeeId:
+ *                 type: string
+ *                 description: Associated employee ID
+ *     responses:
+ *       201:
+ *         description: Vault card created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     cardId:
+ *                       type: string
+ *                     cardNumber:
+ *                       type: string
+ *                 message:
+ *                   type: string
+ *                   example: Vault card created successfully
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Bad request - missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Card number, first name, last name, and employee ID are required
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/cards', async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   try {
     const userId = req.user!.userId;

@@ -162,10 +162,10 @@ class DatabaseManager {
 // Create singleton instance
 const database = new DatabaseManager();
 
-// Initialize connection on startup
+// Initialize connection on startup (non-blocking for development)
 database.connect().catch((error) => {
   logger.error('Failed to initialize database connection:', error);
-  process.exit(1);
+  logger.warn('Server will continue without database connectivity. Some features may not work.');
 });
 
 // Graceful shutdown

@@ -3,11 +3,106 @@ import { v4 as uuidv4 } from 'uuid';
 import database from '@/config/database';
 import logger, { AuditLogger } from '@/utils/logger';
 import { Employee, CreateEmployeeRequest, UpdateEmployeeRequest } from '@/types';
+import { authenticateToken } from '@/middleware/auth';
 
 const router = Router();
 
+/**
+ * @swagger
+ * /api/employees/batch/{batchId}:
+ *   get:
+ *     summary: Get all employees in a batch
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The batch ID
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved employees
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       Id:
+ *                         type: string
+ *                       BatchId:
+ *                         type: string
+ *                       EmployeeId:
+ *                         type: string
+ *                       FirstName:
+ *                         type: string
+ *                       LastName:
+ *                         type: string
+ *                       Email:
+ *                         type: string
+ *                       Department:
+ *                         type: string
+ *                       Position:
+ *                         type: string
+ *                       ImagePath:
+ *                         type: string
+ *                       Status:
+ *                         type: string
+ *                       CreatedAt:
+ *                         type: string
+ *                         format: date-time
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Authentication required
+ *       404:
+ *         description: Batch not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Batch not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
 // Get all employees in a batch
-router.get('/batch/:batchId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/batch/:batchId', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const batchId = req.params.batchId;
@@ -48,8 +143,100 @@ router.get('/batch/:batchId', async (req: Request, res: Response, next: NextFunc
   }
 });
 
+/**
+ * @swagger
+ * /api/employees/{id}:
+ *   get:
+ *     summary: Get a specific employee by ID
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The employee ID
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved employee
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     Id:
+ *                       type: string
+ *                     BatchId:
+ *                       type: string
+ *                     EmployeeId:
+ *                       type: string
+ *                     FirstName:
+ *                       type: string
+ *                     LastName:
+ *                       type: string
+ *                     Email:
+ *                       type: string
+ *                     Department:
+ *                       type: string
+ *                     Position:
+ *                       type: string
+ *                     ImagePath:
+ *                       type: string
+ *                     Status:
+ *                       type: string
+ *                     CreatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Authentication required
+ *       404:
+ *         description: Employee not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Employee not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
 // Get a specific employee
-router.get('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/:id', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const employeeId = req.params.id;
@@ -87,8 +274,134 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
   }
 });
 
+/**
+ * @swagger
+ * /api/employees:
+ *   post:
+ *     summary: Create a new employee
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - batchId
+ *               - employeeId
+ *               - name
+ *             properties:
+ *               batchId:
+ *                 type: string
+ *                 description: The batch ID this employee belongs to
+ *               employeeId:
+ *                 type: string
+ *                 description: Unique employee identifier
+ *               name:
+ *                 type: string
+ *                 description: Employee full name
+ *               department:
+ *                 type: string
+ *                 description: Employee department
+ *               section:
+ *                 type: string
+ *                 description: Employee section
+ *               jobTitle:
+ *                 type: string
+ *                 description: Employee job title
+ *               messHall:
+ *                 type: string
+ *                 description: Employee mess hall
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Employee email address
+ *               imageFileName:
+ *                 type: string
+ *                 description: Original image file name
+ *               processedImageUrl:
+ *                 type: string
+ *                 description: URL to processed image
+ *     responses:
+ *       201:
+ *         description: Employee created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Employee created successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     employeeId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *       400:
+ *         description: Bad request - missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Batch ID, Employee ID, and name are required
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Authentication required
+ *       404:
+ *         description: Batch not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Batch not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
 // Create a new employee
-router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const {
@@ -203,7 +516,117 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
 });
 
 // Update an employee
-router.put('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * @swagger
+ * /api/employees/{id}:
+ *   put:
+ *     summary: Update an employee
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Employee full name
+ *               department:
+ *                 type: string
+ *                 description: Employee department
+ *               section:
+ *                 type: string
+ *                 description: Employee section
+ *               jobTitle:
+ *                 type: string
+ *                 description: Employee job title
+ *               messHall:
+ *                 type: string
+ *                 description: Employee mess hall
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Employee email address
+ *               imageFileName:
+ *                 type: string
+ *                 description: Original image file name
+ *               processedImageUrl:
+ *                 type: string
+ *                 description: URL to processed image
+ *     responses:
+ *       200:
+ *         description: Employee updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Employee updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     employeeId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Authentication required
+ *       404:
+ *         description: Employee not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Employee not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
+router.put('/:id', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const employeeId = req.params.id;
@@ -328,7 +751,76 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction): Prom
 });
 
 // Delete an employee
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+/**
+ * @swagger
+ * /api/employees/{id}:
+ *   delete:
+ *     summary: Delete an employee
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Employee ID
+ *     responses:
+ *       200:
+ *         description: Employee deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Employee deleted successfully
+ *       401:
+ *         description: Authentication required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Authentication required
+ *       404:
+ *         description: Employee not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Employee not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: Internal server error
+ */
+router.delete('/:id', authenticateToken, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = (req as any).user?.userId;
     const employeeId = req.params.id;
