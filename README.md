@@ -43,9 +43,37 @@ The **Face ID Harmonizer Suite** is a modern web application designed for HR dep
 - **📱 Responsive Design**: Works seamlessly on desktop and mobile
 - **🐳 Production Ready**: Complete Docker deployment setup
 
----
+## 🔒 Security & Configuration
 
-## ✨ Features
+### Environment Variables
+This project uses environment variables for configuration. **Never commit real credentials to version control.**
+
+1. Copy the example environment file:
+   ```bash
+   cp backend/.env.example backend/.env
+   ```
+
+2. Update the `.env` file with your actual credentials:
+   ```bash
+   # Database Configuration
+   DB_SERVER=your-actual-server
+   DB_DATABASE=your-actual-database
+   DB_USER=your-actual-username
+   DB_PASSWORD=your-actual-password
+   
+   # Vault Configuration
+   VAULT_HOST=your-actual-vault-server
+   ```
+
+3. Ensure `.env` files are in `.gitignore` (already configured)
+
+### Important Security Notes
+- ⚠️ **Never commit `.env` files** containing real credentials
+- 🔐 **Use strong passwords** for production databases
+- 🛡️ **Rotate credentials regularly** in production environments
+- 📝 **Review all configuration files** before committing to ensure no sensitive data is exposed
+
+---
 
 ### 🖼️ **Image Processing**
 - **Smart Face Detection**: Uses face-api.js with SSD MobileNet v1

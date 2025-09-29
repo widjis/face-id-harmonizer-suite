@@ -203,14 +203,14 @@ class BatchStorageManager {
     try {
       const configJson = localStorage.getItem(this.CONFIG_KEY);
       return configJson ? JSON.parse(configJson) : {
-        host: '10.60.10.6',
+        host: 'localhost',
         endpoint: '/Vaultsite/APIwebservice.asmx',
         enabled: false
       };
     } catch (error) {
       console.error('❌ Failed to load vault config:', error);
       return {
-        host: '10.60.10.6',
+        host: 'localhost',
         endpoint: '/Vaultsite/APIwebservice.asmx',
         enabled: false
       };

@@ -3,10 +3,10 @@ import { DatabaseConfig } from '../types';
 import logger from '../utils/logger';
 
 const config: DatabaseConfig = {
-  server: process.env.DB_SERVER || '10.60.10.47',
-  database: process.env.DB_DATABASE || 'VaultIDCardProcessor',
-  user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD || 'Bl4ck3y34dmin',
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_DATABASE || 'your-database',
+  user: process.env.DB_USER || 'your-username',
+  password: process.env.DB_PASSWORD || 'your-password',
   port: parseInt(process.env.DB_PORT || '1433'),
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',

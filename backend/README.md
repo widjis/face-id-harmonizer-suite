@@ -55,7 +55,7 @@ A robust Node.js backend API for the Face ID Harmonizer Suite with comprehensive
    MAX_FILES=50
    
    # Vault API Configuration
-   VAULT_DEFAULT_HOST=10.60.10.6
+   VAULT_DEFAULT_HOST=your-vault-server
    VAULT_ADD_CARD_ENDPOINT=/Vaultsite/APIwebservice.asmx
    VAULT_GET_CARD_ENDPOINT=/Vaultsite/APIwebservice2.asmx
    ```

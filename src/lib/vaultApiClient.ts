@@ -506,7 +506,7 @@ export class VaultAPIClient {
 
 // Default configuration for MTI Vault system
 export const DEFAULT_VAULT_CONFIG: VaultConfig = {
-  host: '10.60.10.6',
+  host: 'localhost',
   addCardEndpoint: '/Vaultsite/APIwebservice.asmx',
   getCardEndpoint: '/Vaultsite/APIwebservice2.asmx',
   timeout: 30000,
@@ -522,9 +522,9 @@ export interface SqlServerConfig {
 }
 
 export const DEFAULT_SQL_CONFIG: SqlServerConfig = {
-  server: '10.60.10.47',
-  user: 'sa',
-  password: 'Bl4ck3y34dmin',
-  database: 'VaultIDCardProcessor',
+  server: 'localhost',
+  user: 'your-username',
+  password: 'your-password',
+  database: 'your-database',
   port: 1433,
 };
